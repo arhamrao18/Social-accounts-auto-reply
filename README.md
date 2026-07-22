@@ -4,8 +4,8 @@
 
 **Never miss a lead again. An AI agent that reads, understands, and replies to your social messages — automatically.**
 
-[![n8n](https://github.com/user-attachments/assets/bd10e396-edc8-4de3-9710-c6795d8b2439)]
-[![Instagram](https://github.com/user-attachments/assets/ebed6251-090a-47b7-8bd7-e748c050d020)]
+![n8n](https://github.com/user-attachments/assets/bd10e396-edc8-4de3-9710-c6795d8b2439)
+![Instagram](https://github.com/user-attachments/assets/ebed6251-090a-47b7-8bd7-e748c050d020)
 </div>
 
 ---
