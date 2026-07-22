@@ -1,0 +1,340 @@
+{
+  "name": "LinkedIn + Instagram AI Auto-Reply (Unipile - Polling)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-1600, 0],
+      "id": "schedule-trigger-001",
+      "name": "Every 1 Minute"
+    },
+    {
+      "parameters": {
+        "jsCode": "// List every Unipile account you want this workflow to poll.\n// Add/remove entries here whenever you connect a new account.\nreturn [\n  { json: { account_id: \"8ZQWEnSGToyj72OiHnk3SA\", account_type: \"LINKEDIN\" } },\n  { json: { account_id: \"jEgGHxcxQLyRGsyhQzxvow\", account_type: \"INSTAGRAM\" } }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-1360, 0],
+      "id": "code-accountlist-001",
+      "name": "Accounts to Poll"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api32.unipile.com:16242/api/v1/chats?account_id={{ $json.account_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-API-KEY", "value": "YOUR_UNIPILE_API_KEY" },
+            { "name": "accept", "value": "application/json" }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-1120, 0],
+      "id": "http-getchats-001",
+      "name": "Get Chats for Account"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "items",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [-880, 0],
+      "id": "splitout-chats-001",
+      "name": "Split Out Chats"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-unread-001",
+              "leftValue": "={{ $json.unread_count }}",
+              "rightValue": 0,
+              "operator": { "type": "number", "operation": "gt" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-640, 0],
+      "id": "if-unread-001",
+      "name": "Has Unread Messages?"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api32.unipile.com:16242/api/v1/chats/{{ $json.id }}/messages?limit=1",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-API-KEY", "value": "YOUR_UNIPILE_API_KEY" },
+            { "name": "accept", "value": "application/json" }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-400, -80],
+      "id": "http-getlatestmsg-001",
+      "name": "Get Latest Message in Chat"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Unipile returns the latest message under \"items\" (newest first).\n// Adjust the path below if your actual response shape differs —\n// check this node's output once and confirm before relying on it.\nconst chatResponse = $input.item.json;\nconst latest = (chatResponse.items && chatResponse.items[0]) || {};\n\nreturn {\n  json: {\n    chat_id: $('Split Out Chats').item.json.id,\n    account_id: $('Split Out Chats').item.json.account_id,\n    message_text: latest.text || latest.message || '',\n    is_sender: latest.is_sender === true\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-160, -80],
+      "id": "code-extract-001",
+      "name": "Extract Latest Message"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-notme-001",
+              "leftValue": "={{ $json.is_sender }}",
+              "rightValue": false,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [80, -80],
+      "id": "if-notme-001",
+      "name": "Not My Own Message"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message_text }}",
+        "options": {
+          "systemMessage": "You are the AI assistant managing LinkedIn and Instagram messages for [Your Business Name]'s official/business account. You respond on behalf of the business owner in a natural, human, professional tone — never robotic.\n\nYour job has two modes:\n\nMODE 1 — Casual/Personal Conversation\nIf the incoming message is casual small talk, a greeting, or personal (e.g. \"how are you\", \"kya haal hai\", \"nice to meet you\", general pleasantries, no business question involved), respond warmly and naturally like a real person would. Keep it short, friendly, and human. Do NOT pull information from the knowledge base for these messages. Do NOT mention services, pricing, or business details unless the user brings it up.\n\nMODE 2 — Business/Work-Related Query\nIf the message asks about services, pricing, portfolio, experience, availability, technical capabilities, past projects, or anything related to the business, use the Business Knowledge Base tool to find accurate information and answer based ONLY on what's in that file. Do not invent details, prices, or claims that aren't in the file. If the file doesn't contain an answer to a specific question, say you'll get back to them with exact details rather than guessing.\n\nRules:\n- Always reply in the same language/style the sender used (English, Roman Urdu, or Urdu — match them).\n- Keep replies concise — 2 to 4 sentences unless a detailed technical explanation is genuinely needed.\n- Never sound like a copy-pasted template. Personalize based on what they actually asked.\n- If someone asks for pricing or wants to start a project, give a brief helpful answer from the knowledge base, then invite them to share more details about their requirement.\n- Never share sensitive internal information unless explicitly present in the knowledge base as public-facing information.\n- If a message is ambiguous, respond naturally first and let the conversation develop; don't force a sales pitch.\n\nYour goal: sound like a real, competent person managing this inbox — approachable in casual talk, sharp and informative in business talk."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [320, -160],
+      "id": "agent-node-001",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [280, 60],
+      "id": "chatmodel-node-001",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": { "id": "qWoDS91qSr2crfUs", "name": "Google Gemini(PaLM) Api account" }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolName": "business_knowledge_base",
+        "toolDescription": "Use this tool whenever the user asks a business or work-related question — services offered, pricing, portfolio/past projects, technical skills, availability, or FAQs. Do NOT use it for casual greetings or small talk.",
+        "memoryKey": {
+          "__rl": true,
+          "value": "vector_store_key",
+          "mode": "list",
+          "cachedResultName": "vector_store_key"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+      "typeVersion": 1.3,
+      "position": [520, 60],
+      "id": "vectorstore-retrieve-001",
+      "name": "Business Knowledge Base"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [520, 220],
+      "id": "embeddings-retrieve-001",
+      "name": "Embeddings (Retrieval)",
+      "credentials": {
+        "googlePalmApi": { "id": "qWoDS91qSr2crfUs", "name": "Google Gemini(PaLM) Api account" }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api32.unipile.com:16242/api/v1/chats/{{ $('Extract Latest Message').item.json.chat_id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-API-KEY", "value": "YOUR_UNIPILE_API_KEY" },
+            { "name": "accept", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": {{ JSON.stringify($json.output) }}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [600, -160],
+      "id": "httprequest-send-001",
+      "name": "Send Reply to Unipile"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-1600, 500],
+      "id": "manualtrigger-001",
+      "name": "Ingest: Manual Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "https://docs.google.com/document/d/1TFVGgJyWuWkCM-oJwh6N2Vfd713v8sTZOopIdaHbbF0/edit?usp=drive_link",
+          "mode": "url"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [-1360, 500],
+      "id": "googledrive-download-001",
+      "name": "Download file",
+      "credentials": {
+        "googleDriveOAuth2Api": { "id": "htQd0moQz7ZCc7o2", "name": "Google Drive account" }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "memoryKey": {
+          "__rl": true,
+          "value": "vector_store_key",
+          "mode": "list",
+          "cachedResultName": "vector_store_key"
+        },
+        "clearStore": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+      "typeVersion": 1.3,
+      "position": [-1120, 500],
+      "id": "vectorstore-insert-001",
+      "name": "Insert into Vector Store"
+    },
+    {
+      "parameters": { "options": {} },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [-1120, 700],
+      "id": "dataloader-001",
+      "name": "Default Data Loader"
+    },
+    {
+      "parameters": { "options": {} },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [-920, 700],
+      "id": "embeddings-insert-001",
+      "name": "Embeddings (Insert)",
+      "credentials": {
+        "googlePalmApi": { "id": "qWoDS91qSr2crfUs", "name": "Google Gemini(PaLM) Api account" }
+      }
+    }
+  ],
+  "connections": {
+    "Every 1 Minute": {
+      "main": [[{ "node": "Accounts to Poll", "type": "main", "index": 0 }]]
+    },
+    "Accounts to Poll": {
+      "main": [[{ "node": "Get Chats for Account", "type": "main", "index": 0 }]]
+    },
+    "Get Chats for Account": {
+      "main": [[{ "node": "Split Out Chats", "type": "main", "index": 0 }]]
+    },
+    "Split Out Chats": {
+      "main": [[{ "node": "Has Unread Messages?", "type": "main", "index": 0 }]]
+    },
+    "Has Unread Messages?": {
+      "main": [[{ "node": "Get Latest Message in Chat", "type": "main", "index": 0 }]]
+    },
+    "Get Latest Message in Chat": {
+      "main": [[{ "node": "Extract Latest Message", "type": "main", "index": 0 }]]
+    },
+    "Extract Latest Message": {
+      "main": [[{ "node": "Not My Own Message", "type": "main", "index": 0 }]]
+    },
+    "Not My Own Message": {
+      "main": [[{ "node": "AI Agent", "type": "main", "index": 0 }]]
+    },
+    "AI Agent": {
+      "main": [[{ "node": "Send Reply to Unipile", "type": "main", "index": 0 }]]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [[{ "node": "AI Agent", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "Business Knowledge Base": {
+      "ai_tool": [[{ "node": "AI Agent", "type": "ai_tool", "index": 0 }]]
+    },
+    "Embeddings (Retrieval)": {
+      "ai_embedding": [[{ "node": "Business Knowledge Base", "type": "ai_embedding", "index": 0 }]]
+    },
+    "Ingest: Manual Trigger": {
+      "main": [[{ "node": "Download file", "type": "main", "index": 0 }]]
+    },
+    "Download file": {
+      "main": [[{ "node": "Insert into Vector Store", "type": "main", "index": 0 }]]
+    },
+    "Default Data Loader": {
+      "ai_document": [[{ "node": "Insert into Vector Store", "type": "ai_document", "index": 0 }]]
+    },
+    "Embeddings (Insert)": {
+      "ai_embedding": [[{ "node": "Insert into Vector Store", "type": "ai_embedding", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "meta": { "instanceId": "manual-build" }
+}
