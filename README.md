@@ -4,8 +4,14 @@
 
 **Never miss a lead again. An AI agent that reads, understands, and replies to your social messages — automatically.**
 
-![n8n](https://github.com/user-attachments/assets/bd10e396-edc8-4de3-9710-c6795d8b2439)
-![Instagram](https://github.com/user-attachments/assets/ebed6251-090a-47b7-8bd7-e748c050d020)
+
+[![n8n](https://img.shields.io/badge/built%20with-n8n-orange?style=flat-square)](https://n8n.io)
+[![Unipile](https://img.shields.io/badge/messaging%20API-Unipile-6C5CE7?style=flat-square)](https://www.unipile.com)
+[![LinkedIn](https://img.shields.io/badge/platform-LinkedIn-0A66C2?style=flat-square&logo=linkedin&logoColor=white)](#)
+[![Instagram](https://img.shields.io/badge/platform-Instagram-E4405F?style=flat-square&logo=instagram&logoColor=white)](#)
+[![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey?style=flat-square)](#license)
+
+
 </div>
 
 ---
@@ -39,8 +45,9 @@ This workflow connects your social accounts through a single unified messaging A
 <div align="center">
   <table>
     <tr>
-      <td><img src="assets/preview-1.png" alt="Workflow Overview" width="400"></td>
-      <td><img src="assets/preview-2.png" alt="AI Agent in Action" width="400"></td>
+      <td>![n8n](https://github.com/user-attachments/assets/bd10e396-edc8-4de3-9710-c6795d8b2439)
+</td>
+      <td>![Instagram](https://github.com/user-attachments/assets/ebed6251-090a-47b7-8bd7-e748c050d020)</td>
     </tr>
   </table>
 </div>
